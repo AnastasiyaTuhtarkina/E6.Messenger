@@ -1,0 +1,50 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Private chat{% endblock %}</title>
+    <link rel="stylesheet" href="{% static 'styles.css' %}">
+</head>
+<body>
+<div class="container mt-5">
+    <h1>Chat with {{ other_user.username }}</h1>
+    
+    <div id="connection-status" class="mb-3">DISCONNECTED</div> 
+
+    <div id="chat-messages"></div>
+
+    <form id="chat-form">
+        <input type="hidden" id="room-name" value="{{ other_user.id }}"> <!-- ID пользователя как имя комнаты -->
+        <input type="hidden" id="username" value="{{ user.username }}"> <!-- Имя пользователя -->
+        <input type="hidden" id="chat-type" value="private"> <!-- Тип чата (личный) -->
+        <input type="text" id="chat-message-input" class="form-control" placeholder="Type your message here..." required>
+        <button type="submit" class="btn btn-primary mt-2">Send</button>
+    </form>
+
+    <button id="open-button" class="btn btn-success mt-3">Open Connection</button>
+    <button id="close-button" class="btn btn-danger mt-3">Close Connection</button>
+</div>
+
+<script src="{% static 'js/chat.js' %}"></script>
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const chatType = "private";
+        const roomName = "{{ other_user.id }}"; 
+        const username = "{{ user.username }}"; // Имя пользователя
+        const chatSocket = new WebSocket(`ws://127.0.0.1:8000/ws/chat/${chatType}/${roomName}/`);
+
+         // Логируем значение roomName
+        console.log('Chat Type:', chatType);
+        console.log('Room Name:', roomName); // Добавьте это
+        console.log('Username:', username); // Логируем имя пользователя
+    
+        const openButton = document.getElementById('open-button');
+        openButton.addEventListener('click', function() {
+            initializeChat(chatType, roomName, username);  // Универсальная функция
+        });
+    });
+</script>
+</body>
+</html>

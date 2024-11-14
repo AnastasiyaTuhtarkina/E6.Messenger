@@ -1,0 +1,85 @@
+{% load static %}
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Создать новый групповой чат{% endblock %}</title>
+    <link rel="stylesheet" href="{% static 'styles.css' %}">
+    <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-beta.1/dist/css/select2.min.css" rel="stylesheet" />
+    <style>
+        .avatar {
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            margin-right: 5px;
+        }
+        .select2-container .select2-selection--multiple .select2-selection__choice {
+            display: flex;
+            align-items: center;
+        }
+    </style>
+</head>
+<body>
+<div class="container mt-5">
+    <h3>Создать новый чат</h3>
+        <input type="text" id="new-chat-name" placeholder="Введите название чата">
+        <select id="new-chat-users" multiple>
+            <!-- Список пользователей будет заполнен через JS -->
+        </select>
+    <button onclick="createChat()">Создать чат</button>
+</div>
+
+<!-- Подключение jQuery и Select2 -->
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-beta.1/dist/js/select2.min.js"></script>
+<script src="{% static 'js/select2-init.js' %}"></script>
+
+<script>
+    async function fetchUsers() {
+        const response = await fetch('/api/users/');
+        const users = await response.json();
+        const userListElement = document.getElementById('new-chat-users');
+    
+        users.forEach(user => {
+            const option = document.createElement('option');
+            option.value = user.id;
+            option.textContent = user.username;
+            userListElement.appendChild(option);
+        });
+    }
+    
+    async function createChat() {
+        const chatNameInputElement = document.getElementById('new-chat-name');
+        const chatName = chatNameInputElement.value;
+        const usersSelectElement = document.getElementById('new-chat-users');
+        const selectedUsers = Array.from(usersSelectElement.selectedOptions).map(option => option.value);
+    
+        if (!chatName) {
+            alert("Пожалуйста, введите название чата.");
+            return;
+        }
+    
+        const response = await fetch('/api/chats/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                name: chatName,
+                users: selectedUsers  // Передаем выбранных пользователей
+            })
+        });
+    
+        if (!response.ok) {
+            console.error("Ошибка при создании чата:", response.statusText);
+            return;
+        }
+    
+        chatNameInputElement.value = '';
+        fetchChats();
+    }
+</script>
+</body>
+</html>

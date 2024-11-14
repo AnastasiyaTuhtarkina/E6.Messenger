@@ -1,0 +1,62 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Chat Room{% endblock %}</title>
+    <link rel="stylesheet" href="{% static 'styles.css' %}">
+</head>
+<body>
+<div class="container mt-5">
+    <h2>Групповой чат: {{ room_name }}</h2>
+    <p>Участники: {{ participants_count }}</p>
+    
+    {% comment %} <div id="connection-status" class="mb-3">DISCONNECTED</div>  {% endcomment %}
+
+    <div id="chat-log"></div>
+
+    <div class="d-flex justify-content-between mb-3">
+        <div>
+            <a href="{% url 'edit_chat' chat.id %}" class="btn btn-warning">Редактировать чат</a>
+            <form action="{% url 'delete_chat' chat.id %}" method="POST" style="display: inline;">
+                {% csrf_token %}
+                <button type="submit" class="btn btn-danger">Удалить чат</button>
+            </form>
+        </div>
+    </div>
+
+    <form id="chat-form">
+        <input type="hidden" id="room-name" value="{{ chat_id }}"> <!-- Имя комнаты -->
+        <input type="hidden" id="username" value="{{ user.username }}"> <!-- Имя пользователя -->
+        <input type="hidden" id="chat-type" value="group"> <!-- Тип чата (групповой) -->
+        <input id="chat-message-input" type="text" class="form-control" placeholder="Type your message here..." required>
+        <button type="submit" class="btn btn-primary mt-2">Send</button>
+    </form>
+
+    <button id="open-button" class="btn btn-success mt-3">Открыть соединение</button>
+    <button id="close-button" class="btn btn-danger mt-3">Закрыть соединение</button>
+</div>
+
+<script src="{% static 'js/chat.js' %}"></script>
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const chatType = "group";
+        const roomName = "{{ chat_id }}"; // ID группового чата
+        const username = "{{ user.username }}"; // Имя пользователя
+    
+        const openButton = document.getElementById('open-button');
+        openButton.addEventListener('click', function() {
+            initializeChat(chatType, roomName, username);  // Универсальная функция
+        });
+        const closeButton = document.getElementById('close-button');
+        closeButton.addEventListener('click', function() {
+        if (chatSocket) {
+           chatSocket.close(); // Закрыть соединение WebSocket
+        }
+   });
+
+    });
+</script>
+</body>
+</html>
