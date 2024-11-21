@@ -28,6 +28,7 @@ class Accaunt(models.Model):
 class Chat(models.Model):
     name = models.CharField(max_length=255)
     participants = models.ManyToManyField(User, related_name='chats')
+    creator = models.ForeignKey(User, on_delete=models.SET_NULL, related_name='created_chats', null=True)
     is_group = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
 

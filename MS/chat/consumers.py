@@ -44,6 +44,20 @@ class ChatConsumer(AsyncWebsocketConsumer):
         )
 
     async def chat_message(self, event):
+        # Получаем сообщение и дополнительную информацию
+        message = event['message']
+        username = event['username']
+        avatar = event['avatar']
+
+        # Отправляем сообщение всем участникам
+        await self.send(text_data=json.dumps({
+            'message': message,
+            'username': username,
+            'avatar': avatar
+        }))
+
+
+    async def chat_message(self, event):
         message = event['message']
         username = event['username']
         avatar = event['avatar']

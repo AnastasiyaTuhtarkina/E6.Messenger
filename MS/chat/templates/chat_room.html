@@ -42,21 +42,49 @@
 <script>
     document.addEventListener('DOMContentLoaded', function() {
         const chatType = "group";
-        const roomName = "{{ chat_id }}"; // ID группового чата
-        const username = "{{ user.username }}"; // Имя пользователя
-    
+        const roomName = "{{ chat_id }}"; 
+        const username = "{{ user.username }}"; 
+
         const openButton = document.getElementById('open-button');
+
         openButton.addEventListener('click', function() {
-            initializeChat(chatType, roomName, username);  // Универсальная функция
-        });
+            // Проверка на существующий WebSocket
+            if (!chatSocket || chatSocket.readyState === WebSocket.CLOSED) {
+                initializeChat(chatType, roomName, username);
+            } else {
+                console.log('WebSocket is already open.');
+            }
+        }); 
+
         const closeButton = document.getElementById('close-button');
         closeButton.addEventListener('click', function() {
-        if (chatSocket) {
-           chatSocket.close(); // Закрыть соединение WebSocket
-        }
-   });
+            if (chatSocket) {
+                chatSocket.close();
+            }
+        });
 
-    });
+        const chatForm = document.getElementById('chat-form');
+
+        chatForm.addEventListener('submit', function(e) {
+            e.preventDefault();  
+            const messageInput = document.getElementById('chat-message-input');
+            const message = messageInput.value;
+
+            // Убедитесь, что chatSocket открыт перед отправкой сообщения
+            if (chatSocket && chatSocket.readyState === WebSocket.OPEN) {
+                chatSocket.send(JSON.stringify({
+                    'message': message,
+                    'username': username,
+                    'chat_type': chatType,
+                }));
+                messageInput.value = ''; // Очищаем поле ввода
+            } else {
+                console.error('Cannot send message: WebSocket is not open.');
+                alert('Cannot send message, WebSocket is not open.');
+            }
+        }); 
+    }); 
+
 </script>
 </body>
 </html>

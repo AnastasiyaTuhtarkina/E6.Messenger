@@ -1,9 +1,13 @@
 import logging
+from pyexpat.errors import messages
 from h11 import Response
 from rest_framework import viewsets, status, permissions
 from msilib.schema import ListView
 from django.contrib import auth
+from django.contrib import messages
 from django.contrib.auth.views import LoginView
+from django.db.models import Count, Value
+from django.db.models.functions import Coalesce
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse, reverse_lazy
 from django.views.generic.detail import DetailView
@@ -27,7 +31,7 @@ class CustomLoginView(LoginView):
 def default_view(request):
     if request.user.is_authenticated:
         user_chats = Chat.objects.filter(participants=request.user)
-
+        
         # Получаем фильтр из GET параметров
         chat_filter = request.GET.get('filter')
 
@@ -37,26 +41,22 @@ def default_view(request):
         elif chat_filter == 'group':
             user_chats = user_chats.filter(is_group=True)
 
-        # Логика для замены имени чата на "чат с {пользователь}"
-        chats_with_names = []
+        # Подготовка логики для отображаемого имени чата
         for chat in user_chats:
             if not chat.is_group and chat.participants.count() == 2:
-                # Находим другого участника чата
                 other_user = chat.participants.exclude(id=request.user.id).first()
-                chat.display_name = f"Chat with {other_user.username}" if other_user else chat.name
+                chat.display_name = f"Chat with {other_user.username}" if other_user else "Unknown User"
             else:
                 chat.display_name = chat.name  # Оставляем стандартное имя для групповых чатов
-            chats_with_names.append(chat)
 
         # Пагинация
-        paginator = Paginator(chats_with_names, 10)  # 10 чатов на страницу
-        page_number = request.GET.get('page')  # Получаем номер страницы из параметров запроса
-        page_obj = paginator.get_page(page_number)  # Получаем объект страницы
+        paginator = Paginator(user_chats, 10)  # 10 чатов на страницу
+        page_number = request.GET.get('page')
+        page_obj = paginator.get_page(page_number)
 
         return render(request, 'default.html', {'page_obj': page_obj})
     else:
         return render(request, 'default.html', {'message': 'Please log in to see your chats.'})
-    
 
 def signup_view(request):
     if request.method == 'POST':
@@ -75,35 +75,72 @@ def logout_view(request):
 
 logger = logging.getLogger(__name__)
 
-
+# Формируем страницу для создания чата 
 def create_chat_view(request):
-    chat_name = None  # Инициализация переменной
-    if request.method == 'POST':
-        chat_name = request.POST.get('chat_name')
-    if not chat_name:
-        return render(request, 'create_chat.html', {'error': 'Chat name cannot be empty'})
+    users = User.objects.all()  # Получите всех пользователей
 
-    try:
-        Chat.objects.create(name=chat_name)
-        return redirect('default')
-    except Exception as e:
-        logger.error(f"Error creating chat: {e}")
-        return render(request, 'create_chat.html', {'error': str(e)})
-    
+    if request.method == 'POST':
+        chat_name = request.POST.get('name')
+        participant_ids = request.POST.getlist('participants')  # Получение id участников как список
+        is_group = request.POST.get('is_group') == 'on'  # Проверка значения
+
+        # Проверка на пустое имя чата
+        if not chat_name:
+            return render(request, 'create_chat.html', {'users': users, 'error': 'Имя чата не может быть пустым'})
+
+        # Проверка на уникальность имени чата
+        existing_chats = Chat.objects.filter(name=chat_name)
+        if is_group:
+            existing_chats = existing_chats.filter(participants__in=[request.user]).distinct()  # Проверка для группового чата
+            
+        if existing_chats.exists():
+            return render(request, 'create_chat.html', {'users': users, 'error': 'Чат с таким именем уже существует.'})
+
+        # Получение объектов участников
+        participants = User.objects.filter(id__in=participant_ids)
+        if not participants.exists():
+            return render(request, 'create_chat.html', {'users': users, 'error': 'Участники не найдены'})
+
+        try:
+            # Создание чата
+            if is_group:
+                participants = participants | User.objects.filter(id=request.user.id)  # Добавляем создателя в участников
+            
+            chat = Chat.objects.create(name=chat_name, creator=request.user, is_group=is_group)  # Создаем чат с создателем
+            chat.participants.add(*participants)  # Добавляем объекты участников
+
+            messages.success(request, 'Чат успешно создан!')
+            return redirect('chat_room', chat_id=chat.id)  # Передаем chat_id в редиректе) 
+        except Exception as e:
+            logger.error(f"Error creating chat: {e}")
+            return render(request, 'create_chat.html', {'users': users, 'error': str(e)})
+
+    return render(request, 'create_chat.html', {'users': users})   # Передаем пользователей для отображения при создании чата
+
 
 def chats_view(request):
     if request.user.is_authenticated:
-        user_chats = Chat.objects.filter(participants=request.user).prefetch_related('participants')
+    
+        filter_type = request.GET.get('filter', None)  # Получаем тип фильтра из URL
+
+        # Фильтруем чаты в зависимости от выбранного типа
+        if filter_type == 'private':
+            user_chats = Chat.objects.filter(participants=request.user, is_group=False).prefetch_related('participants')
+        elif filter_type == 'group':
+            user_chats = Chat.objects.filter(participants=request.user, is_group=True).prefetch_related('participants')
+        else:
+            user_chats = Chat.objects.filter(participants=request.user).prefetch_related('participants')
 
         # Логика для замены имени чата на "чат с {пользователь}"
         chats_with_names = []
         for chat in user_chats:
-            if not chat.is_group and chat.participants.count() == 2:
-                # Находим другого участника чата
+            if chat.is_group:
+                chat.display_name = chat.name  # Оставляем стандартное имя для групповых чатов
+            elif chat.participants.count() == 2:
                 other_user = chat.participants.exclude(id=request.user.id).first()
                 chat.display_name = f"Chat with {other_user.username}" if other_user else chat.name
             else:
-                chat.display_name = chat.name  # Оставляем стандартное имя для групповых чатов
+                chat.display_name = chat.name  # В любом другом случае просто используем имя чата
             chats_with_names.append(chat)
 
         # Пагинация
@@ -116,24 +153,27 @@ def chats_view(request):
         return render(request, 'default.html', {'message': 'Please log in to see your chats.'})
 
 
-def private_chat_view(request, user_id):  # Изменено здесь
-    if request.method == 'POST':
-        if not user_id:
-            return render(request, 'private_chat.html', {'error': 'User ID is required.'})
-        
-        try:
-            user = User.objects.get(id=user_id)
-            # Создаем чат с обоими участниками: текущим пользователем и найденным пользователем
-            chat, created = Chat.objects.get_or_create(participants=[request.user, user])
-            return redirect('chat_room', chat_id=chat.id)  # Перенаправляем пользователя в комнату чата
-            
-        except User.DoesNotExist:
-            logger.error(f"User with id {user_id} does not exist.")
-            return render(request, 'private_chat.html', {'error': 'User not found.'})
+@login_required
+def private_chat_view(request, user_id):
+    # Получаем текущего пользователя
+    current_user = request.user
 
-    # Если запрос GET, используйте get_object_or_404 для извлечения пользователя
-    user = get_object_or_404(User, id=user_id)
-    return render(request, 'private_chat.html', {'user': user})
+    # Находим другого пользователя
+    other_user = get_object_or_404(User, id=user_id)
+
+    # Пытаемся получить чат между текущим пользователем и другим пользователем
+    chat = Chat.objects.filter(participants=current_user).filter(participants=other_user)
+
+    # Если чата не существует, можно создать его (если нужно)
+    if chat.exists():
+        chat = chat.first()  # Получаем первый чат
+    else:
+        # Если чата не существует, создаем его
+        chat = Chat.objects.create(name=f"Chat with {other_user.username}", is_group=False)
+        chat.participants.add(current_user, other_user)
+
+    # Здесь вы можете добавить логику для отображения чата
+    return render(request, 'private_chat.html', {'chat': chat, 'other_user': other_user})
 
 
 def chat_room_view(request, chat_id):
@@ -149,7 +189,8 @@ def chat_room_view(request, chat_id):
     return render(request, 'chat_room.html', {
         'chat': chat,
         'room_name': room_name,
-        'participants_count': participants_count  # Передаем количество участников
+        'participants_count': participants_count,  # Передаем количество участников
+        'chat_id': chat.id
     })
 
 # Страница редактирования чата

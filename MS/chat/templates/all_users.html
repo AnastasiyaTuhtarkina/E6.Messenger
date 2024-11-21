@@ -20,9 +20,8 @@
                         {% else %}
                             <img src="{% static 'not_avatar.png' %}" alt="{{ user.username }}"> 
                         {% endif %}
-                        {% comment %} <img src="{{ user.userprofile.avatar.url }}" alt="{{ user.username }}">   {% endcomment %}
                     </div>
-                    {% comment %} <span>{{ user.username }}</span> {% endcomment %}
+                    <span>{{ user.username }}</span> 
                 </div>
                 <a href="{% url 'private_chat' user.id %}" class="btn btn-primary">Написать сообщение</a>
             </li>

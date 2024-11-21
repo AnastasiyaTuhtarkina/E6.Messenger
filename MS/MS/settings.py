@@ -59,11 +59,11 @@ MIDDLEWARE = [
 ]
 
 ROOT_URLCONF = 'MS.urls'
-
+#
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [os.path.join(BASE_DIR, 'templates/')],
+        'DIRS': [],
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [
@@ -134,11 +134,13 @@ USE_TZ = True
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/5.1/howto/static-files/
 
-STATIC_ROOT = os.path.join(BASE_DIR, 'static')
 STATIC_URL = '/static/'
-# STATICFILES_DIRS = [
-#        BASE_DIR / "static",  # Путь к вашей директории статических файлов
-#    ]
+
+STATICFILES_DIRS = [
+    os.path.join(BASE_DIR, "static"),  # Убедитесь, что этот путь правильный
+]
+
+STATIC_ROOT = os.path.join(BASE_DIR, "staticfiles") 
 
 # Media files (uploaded files)
 MEDIA_URL = '/media/'

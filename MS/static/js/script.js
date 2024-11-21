@@ -3,14 +3,14 @@ document.addEventListener("DOMContentLoaded", function() {
     const msg = document.getElementById("msg");
     const log = document.getElementById("log");
     const form = document.getElementById("form");
-    const sendGeoBtn = document.getElementById("send_geo");
     const usernameInput = document.getElementById("username");
     const avatarInput = document.getElementById("avatar");
     const updateInfoBtn = document.getElementById("update-info");
     const disconnectBtn = document.getElementById("disconnectBtn");
 
     // Проверки на существование
-    if (!form || !msg || !log || !sendGeoBtn || !disconnectBtn) {
+    if (!form || !msg || !log || !disconnectBtn) {
+        console.log('Available elements:', document.querySelectorAll('.my-element'));
         console.error("One or more DOM elements are missing!");
         return;
     }
@@ -74,25 +74,6 @@ document.addEventListener("DOMContentLoaded", function() {
         appendLog(item);
     };    
 
-    sendGeoBtn.onclick = function () {
-        if (!conn) {
-            return false;
-        }
-        if ("geolocation" in navigator) {
-            navigator.geolocation.getCurrentPosition(
-                (position) => {
-                    const { coords } = position;
-                    conn.send(JSON.stringify({ lat: coords.latitude, lng: coords.longitude }));
-                },
-                (error) => {
-                    const item = document.createElement("div");
-                    item.innerHTML = "<b>Error getting location: </b>" + error.message;
-                    appendLog(item);
-                }
-            );
-        }
-        return false;
-    };
 
     if (window["WebSocket"]) {
         conn.onclose = function (evt) {

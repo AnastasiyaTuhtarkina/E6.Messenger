@@ -13,7 +13,10 @@
     
     <div id="connection-status" class="mb-3">DISCONNECTED</div> 
 
-    <div id="chat-messages"></div>
+    <div id="chat-messages">
+        <div id="chat-log"></div> <!-- Элемент для отображения сообщений -->
+    </div>
+
 
     <form id="chat-form">
         <input type="hidden" id="room-name" value="{{ other_user.id }}"> <!-- ID пользователя как имя комнаты -->
@@ -33,7 +36,7 @@
         const chatType = "private";
         const roomName = "{{ other_user.id }}"; 
         const username = "{{ user.username }}"; // Имя пользователя
-        const chatSocket = new WebSocket(`ws://127.0.0.1:8000/ws/chat/${chatType}/${roomName}/`);
+    
 
          // Логируем значение roomName
         console.log('Chat Type:', chatType);
